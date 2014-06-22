@@ -1,29 +1,38 @@
 {
-    "name": "grunt-multi",
-    "version": "0.0.5",
-    "description": "Run Grunt task with multi-configuration.",
-    "scripts": {
-        "test": "mocha -t 0 -R spec"
-    },
-    "repository": {
-        "type": "git",
-        "url": "http://github.com/neekey/grunt-multi.git"
-    },
-    "bugs": {
-        "url": "http://github.com/neekey/grunt-multi/issues/new"
-    },
-    "keywords": [
-        "gruntplugin"
-    ],
-    "contributors": [
-        {
-            "name": "yinruo",
-            "email": "yinruo.nyj@taobao.com"
-        }
-    ],
-    "license": "MIT",
-    "devDependencies": {
-        "fs-extra": "~0.6.3",
-        "mocha": "~1.12.0"
+  "name": "grunt-multi",
+  "version": "0.0.6",
+  "description": "Run Grunt task with multi-configuration.",
+  "scripts": {
+    "test": "mocha -t 0 -R spec"
+  },
+  "repository": {
+    "type": "git",
+    "url": "http://github.com/neekey/grunt-multi.git"
+  },
+  "bugs": {
+    "url": "http://github.com/neekey/grunt-multi/issues/new"
+  },
+  "keywords": [
+    "gruntplugin"
+  ],
+  "contributors": [
+    {
+      "name": "yinruo",
+      "email": "yinruo.nyj@taobao.com"
     }
+  ],
+  "license": "MIT",
+  "devDependencies": {
+    "fs-extra": "~0.6.3",
+    "mocha": "~1.12.0"
+  },
+  "readme": "# grunt-multi\n\nRun Grunt task with multi-configuration.\n\n## How to use\n\nSay that we defined a very simple grunt task:\n\n```js\ntargetPage: 'a',\noutTarget: 'mod1.js',\n\ncopy: {\n   subDir: {\n       files: [\n           {\n               expand: true,\n               cwd: 'src',\n               src: [ '<%= targetPage %>/*.js' ],\n               dest: 'build'\n           }\n       ]\n   },\n   out: {\n       files: [\n           {\n               expand: true,\n               cwd: 'src',\n               src: '<%= outTarget %>',\n               dest: 'build'\n           }\n       ]\n   }\n}\n\n...\n\n// defined your task here\ngrunt.registerTask('build', [ 'copy' ]);\n```\n\nQuite simple, and when you run `grunt build`, you will get all the JS files under `src/a` copyed to `build/a`.\n\nBut what if when your project grows larger, maybe you got like `src/b`, `src/c`.. in your project?\n\nAnd that's what `Grunt-multi` want to solve, you don't need to modify your `copy` configuration, but just want exactly the same task run multiple times but with different configurations ( here within the example, we just want to change the variable `targetPage` ).\n\nJust see code below, let's configure the `grunt-multi` task:\n\n```js\nmulti: {\n    // Yes, you can use file pattern to match files or paths\n    pattern: {\n        options: {\n            vars: {\n                page_list: { patterns: '*', options: { cwd: 'src', filter: 'isDirectory' } }\n            },\n            config: {\n                targetPage: '<%= page_list %>'\n            },\n            tasks: [ 'copy' ]\n        }\n    },\n    // Also you can specify a list.\n    list: {\n        options: {\n            vars: {\n                page_list: [ 'a', 'b', 'c' ]\n            },\n            config: {\n                targetPage: '<%= page_list %>'\n            },\n            tasks: [ 'copy' ]\n        }\n    },\n    // A more smart way might be read from an external file.\n    external: {\n        options: {\n            vars: {\n                page_list: grunt.file.readJSON('build.json').target\n            },\n            config: {\n                targetPage: '<%= page_list %>'\n            },\n            tasks: [ 'copy' ]\n        }\n    },\n    // However, sometimes you may want to specify a constant variable.\n    constant: {\n        options: {\n            vars: {\n                page_list: [ 'a', 'b', 'c' ],\n                out_target: 'mod2.js'\n            },\n            config: {\n                targetPage: '<%= page_list %>',\n                outTarget: '<%= out_target %>'\n            },\n            tasks: [ 'copy' ]\n        }\n    },\n    // For the consideration of flexibility，you can use a function, but note that the return value, must be either an Array or String.\n    func: {\n        options: {\n            vars: {\n                page_list: function(){\n                    return [ 'a', 'b', 'c' ];\n                }\n            },\n            config: {\n                targetPage: '<%= page_list %>'\n            },\n            tasks: [ 'copy' ]\n        }\n    },\n    // Also you can use function to direct modify the config, this is useful if you want to get more flexible to modify the configuration.\n    // params:\n    //      1、vars: a single instant of the vars you defined\n    //      2、rawConfig: the raw configuration.\n    constant_func: {\n        options: {\n            vars: {\n                page_list: [ 'a', 'b', 'c' ],\n                out_target: 'mod2.js'\n            },\n            config: {\n                targetPage: function( vars, rawConfig ){ return vars.page_list; },\n                outTarget: function( vars, rawConfig ){ return vars.out_target; }\n            },\n            tasks: [ 'copy' ]\n        }\n    },\n\n    // Custom logs\n    custom_log: {\n        options: {\n            logBegin: function( vars ){\n                console.log( 'Begin build page: ' + vars.page_list;\n            },\n            logEnd: function( vars ){\n                console.log( 'Page: ' + vars.page_list + ' success';\n            },\n            vars: {\n                page_list: [ 'a', 'b', 'c' ],\n                out_target: 'mod2.js'\n            },\n            config: {\n                targetPage: function( vars, rawConfig ){ return vars.page_list; },\n                outTarget: function( vars, rawConfig ){ return vars.out_target; }\n            },\n            tasks: [ 'copy' ]\n        }\n    },\n}\n```\n\nAfter configuration you just run `grunt multi:func`( or any defined sub task ) to execute the multi version of copy.\n \n### options\n\nAvailable options:\n\n- `vars`: variables can be used within the next option `config`, in fact `var` is a list, you can get the list by `file pattern`, `array`, `function`(return a list).\n- `config`: the config item you want to change, you can use `vars` as template variables.\n- `tasks`: the tasks you want to run.\n- `continue`: if set to `true`, you indicate that the task will not stop. ( example: watch ).\n- `logBegin`: Function, return log content you want to put in front of a thread.\n- `logEnd`: Function, return log content you want to put after a thread finish.\n- `maxSpawn`: The max number of spawns that can run at the same time.\n\n### Specify `vars` with command\n\n```bash\n$ grunt multi:func --page_list a,b,c --outTarget mod2.js\n```\nNote that this will override the configuration in `gruntfile.js`.\n\n### How to decide if its a multi-single thread.\n\nIn some cases maybe you want to tell if the current thread is a child spawned by `grunt-multi`, just use the `multi-single` option to distinguish:\n\n```\nif( grunt.option( 'multi-single' ) ){\n    console.log( 'Child' );\n}\n```\n\nEnjoy!",
+  "readmeFilename": "README.md",
+  "homepage": "https://github.com/neekey/grunt-multi",
+  "_id": "grunt-multi@0.0.6",
+  "dist": {
+    "shasum": "c4cdf8d7bec1866936421179a0669cde9633c57c"
+  },
+  "_from": "grunt-multi@0.0.6",
+  "_resolved": "https://registry.npmjs.org/grunt-multi/-/grunt-multi-0.0.6.tgz"
 }
